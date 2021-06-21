@@ -116,5 +116,99 @@
       }
       
       
+      // 抛异常重试三次
+    private static HttpRequestRetryHandler getCustomHttpRequestRetryHandler() {
+        HttpRequestRetryHandler myRetryHandler = new HttpRequestRetryHandler() {
+            @Override
+            public boolean retryRequest(IOException exception, int executionCount, HttpContext context) {
+                if (executionCount > httpClientEnhanceConfig.getRetryRequestCount()) {
+                    // Do not retry if over max retry count
+                    return false;
+                }
+                if (exception instanceof InterruptedIOException) {
+                    // Timeout
+                    return false;
+                }
+                if (exception instanceof UnknownHostException) {
+                    // Unknown host
+                    return false;
+                }
+                if (exception instanceof ConnectTimeoutException) {
+                    // Connection refused
+                    return false;
+                }
+                if (exception instanceof SSLException) {
+                    // SSL handshake exception
+                    return false;
+                }
+                if (exception instanceof NoHttpResponseException) {
+                    // NoHttpResponseException handshake exception
+                    logger.error("http client retries again " + executionCount + " in NoHttpResponseException request");
+                    return true;
+                }
+                HttpClientContext clientContext = HttpClientContext.adapt(context);
+                HttpRequest request = clientContext.getRequest();
+                boolean idempotent = !(request instanceof HttpEntityEnclosingRequest);
+                if (idempotent) {
+                    // Retry if the request is considered idempotent
+                    return true;
+                }
+                return false;
+            }
+        };
+        return myRetryHandler;
+    }
+
+    /**
+     * 获取连接请求配置
+     *
+     * @param connectTimeout
+     * @param readTimeout
+     * @return
+     */
+    public static RequestConfig getRequestConfig(int connectTimeout, int readTimeout) {
+        // 创建http request的配置信息
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setSocketTimeout(readTimeout) // 读取超时单位毫秒
+                .setConnectTimeout(connectTimeout) // 连接超时单位毫秒
+                .setConnectionRequestTimeout(Constants.DEFAULT_CONNECT_REQUEST_TIMEOUT) // 连接请求超时单位毫秒
+                .build();
+        return requestConfig;
+    }
+    
+    /**
+     * 从连接池获取连接请求
+     *
+     * @param connectTimeout
+     * @param readTimeout
+     * @return
+     */
+    public static CloseableHttpClient getHttpClientByPool(int connectTimeout, int readTimeout) {
+        // 创建httpclient连接池
+        if (null == cm) {
+            initPoolingHttpClientConnectionManager();
+        }
+
+        //获取自定义的重试策略
+        HttpRequestRetryHandler myRetryHandler = getCustomHttpRequestRetryHandler();
+        // 创建http request的配置信息
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setSocketTimeout(readTimeout) // 读取超时单位毫秒
+                .setConnectTimeout(connectTimeout) // 连接超时单位毫秒
+                .setConnectionRequestTimeout(Constants.DEFAULT_CONNECT_REQUEST_TIMEOUT) // 连接请求超时单位毫秒
+                .build();
+
+        //连接池构建httpClient
+        CloseableHttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(cm)
+                .setDefaultRequestConfig(requestConfig)
+                .setRetryHandler(myRetryHandler)
+                .build();
+
+        return httpClient;
+    }
+
+      
+      
  
  
