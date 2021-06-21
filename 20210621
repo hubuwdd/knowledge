@@ -84,3 +84,37 @@
         }
 
       }
+      
+ 5. 连接池
+    (1) 初始化
+      private static PoolingHttpClientConnectionManager cm;
+
+      /**
+       * 初始化httpclient连接池
+       */
+      private static void initPoolingHttpClientConnectionManager() {
+        if (null == cm) {
+            //初始化连接池数量值
+            ConnectionSocketFactory plainsf = PlainConnectionSocketFactory.getSocketFactory();
+            LayeredConnectionSocketFactory sslsf = SSLConnectionSocketFactory.getSocketFactory();
+            Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create().register("http", plainsf).register("https", sslsf).build();
+
+            cm = new PoolingHttpClientConnectionManager(registry);
+            //配置最大连接数和最大路由连接数，如果你要连接的url只有一个，两个必须配置成一样，否则只会取最小值。（默认最大连接是20，每个路由最大连接是2）
+            //建议maxTotal = maxPerRoute * url个数
+            cm.setMaxTotal(httpClientEnhanceConfig.getMaxTotal()); // 设置连接池线程最大数量
+            cm.setDefaultMaxPerRoute(httpClientEnhanceConfig.getDefaultMaxPerRoute());// 设置单个路由最大的连接线程数量
+            //设置单个host默认路由
+            HashMap<String, Integer> dataMap = httpClientEnhanceConfig.getHostMaxPerRoute();
+            if (null != dataMap && !dataMap.isEmpty()) {
+                for (Entry<String, Integer> entry : dataMap.entrySet()) {
+                    HttpHost httpHost = new HttpHost(entry.getKey());
+                    cm.setMaxPerRoute(new HttpRoute(httpHost), entry.getValue());
+                }
+            }
+        }
+      }
+      
+      
+ 
+ 
