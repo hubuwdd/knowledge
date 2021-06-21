@@ -1,4 +1,4 @@
-1. logback
+1. logback日志拦截
   继承extends RollingFileAppender<ILoggingEvent>
   
         start();
@@ -11,7 +11,7 @@
         }
         
         
-2. log4j
+2. log4j日志拦截
     继承extends DailyRollingFileAppender
     
  
@@ -65,3 +65,22 @@
             this.fullyUnlock();
         }
     }
+    
+ 4. 拦截器
+     (1) class MonitorProxyCreator extends AbstractAutoProxyCreator implements InitializingBean 
+        public MonitorProxyCreator() {
+          super();
+          setOrder(Ordered.LOWEST_PRECEDENCE);
+        }
+
+      public void setConfigLocation(Resource configLocation) throws Exception {
+        try {
+            List<BizDetailMonitorConfig> stableConfigs = BizMonitorConfigLoader.load(configLocation.getInputStream());
+            if (null != stableConfigs) {
+                this.bizLogDetailMonitorConfigMap = Collections.unmodifiableMap(convertListToMap(stableConfigs));
+            }
+        } catch (Exception e) {
+            throw e;
+        }
+
+      }
