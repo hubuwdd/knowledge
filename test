@@ -1,0 +1,15 @@
+1. logback
+  继承extends RollingFileAppender<ILoggingEvent>
+  
+        start();
+        try {
+            MDC.put(PoliceDogConstants.BIZ_MONITOR_TRACE_ID_KEY, EagleEye.getTraceId());
+            .......
+        } finally {
+            super.subAppend(event);
+            MDC.clear();
+        }
+        
+        
+2. log4j
+    继承extends DailyRollingFileAppender
