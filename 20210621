@@ -207,6 +207,63 @@
 
         return httpClient;
     }
+    
+    	/**
+	 *  execute方法
+	 * @param url
+	 * @param httpRequestBase
+	 * @param connectTimeout
+	 * @param readTimeout
+	 * @return
+	 */
+	private static String execute(String url, HttpRequestBase httpRequestBase, String responseCharset, int connectTimeout, int readTimeout) {
+		//连接池构建httpClient
+		CloseableHttpClient httpClient = HttpClientUtils.getHttpClient(connectTimeout, readTimeout);
+		CloseableHttpResponse response = null;
+		String responseResult = null;
+
+		
+		try {
+			if(!HttpClientUtils.isUsePool()){
+				httpRequestBase.setConfig(HttpClientUtils.getRequestConfig(connectTimeout, readTimeout));
+			}
+
+
+			response = httpClient.execute(httpRequestBase);
+			if(null != response){
+				resultCode = String.valueOf(response.getStatusLine().getStatusCode());
+				if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+					Charset charset = null;
+					ContentType contentType = ContentType.get(response.getEntity());
+					if (null == contentType && StringUtils.isNotBlank(responseCharset)) {
+						charset = Charset.forName(responseCharset);
+					} else {
+						charset = contentType.getCharset();
+						if (charset == null) {
+							final ContentType defaultContentType = ContentType.getByMimeType(contentType.getMimeType());
+							charset = defaultContentType != null ? defaultContentType.getCharset() : null;
+						}
+					}
+
+					responseResult = EntityUtils.toString(response.getEntity(), charset);
+				} else {
+					throw new RuntimeException("http request execute response fail return code is " + response.getStatusLine().getStatusCode());
+				}
+			}
+		} catch (Exception e) {
+			logger.error("isUsePool" + HttpClientUtils.isUsePool()+", http request execute error:" + url, e);
+		} finally {
+			if (response != null) {
+				try {
+					response.close(); //关闭Http响应,会立即关闭、丢弃http连接
+				} catch (IOException e) {
+					logger.error("http response close error:", e);
+				}
+			}
+		}
+		return  responseResult;
+	}
+
 
       
       
